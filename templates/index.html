@@ -1,0 +1,49 @@
+{% extends "layout.html" %}
+{% block title %}获取验证码{% endblock %}
+{% block content %}
+<div class="bg-white p-6 sm:p-8 rounded-lg shadow-lg max-w-lg mx-auto">
+    <h1 class="text-2xl font-bold text-center mb-6">获取 Telegram 验证码</h1>
+    <p class="text-center text-gray-500 mb-6">游客可直接使用UUID获取验证码。登录后可永久保存和管理您的账号。</p>
+    <form method="post" action="{{ url_for('get_code') }}">
+        <div class="mb-4">
+            <label for="uuid" class="block text-gray-700 font-bold mb-2">Session UUID</label>
+            <input type="text" id="uuid" name="uuid" value="{{ uuid or '' }}"
+                   class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                   required>
+        </div>
+        <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full focus:outline-none focus:shadow-outline"
+                type="submit">
+            获取验证码
+        </button>
+    </form>
+
+    {% if result %}
+    <div class="mt-6 p-4 bg-gray-50 rounded-lg border">
+        <h3 class="text-lg font-semibold mb-4">获取结果:</h3>
+        {% if result.error %}
+        <p class="text-red-600"><strong>错误:</strong> {{ result.error }}</p>
+        {% else %}
+        <div class="mb-4 space-y-2">
+            <p><strong>用户 ID:</strong> <span class="font-mono bg-gray-200 px-2 py-1 rounded break-all">{{ result.chat_id }}</span>
+            </p>
+            <p><strong>手机号码:</strong> <span class="font-mono bg-gray-200 px-2 py-1 rounded">{{ result.phone }}</span>
+            </p>
+        </div>
+        <h4 class="text-md font-semibold mb-2">最新验证码:</h4>
+        {% if result.codes %}
+        <ul class="space-y-2">
+            {% for item in result.codes %}
+            <li class="p-3 bg-white border rounded-md flex justify-between items-center flex-wrap gap-2">
+                <span class="font-mono text-lg text-blue-600 bg-blue-100 px-2 py-1 rounded">{{ item.code }}</span>
+                <span class="text-sm text-gray-500">{{ item.time }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-gray-500">在最近的消息中未找到任何验证码。</p>
+        {% endif %}
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

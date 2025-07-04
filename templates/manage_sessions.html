@@ -1,0 +1,87 @@
+{% extends "layout.html" %}
+{% block title %}管理 Sessions{% endblock %}
+{% block content %}
+<div class="bg-white p-8 rounded-lg shadow-lg">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">您的 Sessions</h1>
+        <a href="{{ url_for('session_to_string') }}"
+           class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            添加新账号 (转换)
+        </a>
+    </div>
+
+    <form method="post" action="{{ url_for('bulk_actions') }}" id="sessions-form">
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white text-sm">
+                <thead class="bg-gray-800 text-white">
+                <tr>
+                    <th class="p-3 text-center"><input type="checkbox" id="select-all"></th>
+                    <th class="text-left py-3 px-4 uppercase font-semibold">名称</th>
+                    <th class="text-left py-3 px-4 uppercase font-semibold">账号 ID</th>
+                    <th class="text-left py-3 px-4 uppercase font-semibold">手机号</th>
+                    <th class="text-left py-3 px-4 uppercase font-semibold">国家</th>
+                    <th class="text-left py-3 px-4 uppercase font-semibold">UUID</th>
+                    <th class="text-left py-3 px-4 uppercase font-semibold">添加时间</th>
+                    <th class="text-center py-3 px-4 uppercase font-semibold">操作</th>
+                </tr>
+                </thead>
+                <tbody class="text-gray-700">
+                {% for s in sessions %}
+                <tr class="border-b">
+                    <td class="p-3 text-center"><input type="checkbox" name="session_ids" value="{{ s.id }}"
+                                                       class="session-checkbox"></td>
+                    <td class="py-3 px-4 font-semibold">{{ s.name or 'N/A' }}</td>
+                    <td class="py-3 px-4 font-mono">{{ s.chat_id or 'N/A' }}</td>
+                    <td class="py-3 px-4 font-mono">{{ s.phone or 'N/A' }}</td>
+                    <td class="py-3 px-4">{{ s.country or 'N/A' }}</td>
+                    <td class="py-3 px-4 font-mono text-xs">{{ s.uuid }}</td>
+                    <td class="py-3 px-4 whitespace-nowrap">{{ s.created_at | beijing_time }}</td>
+                    <td class="text-center py-3 px-4">
+                        <a href="{{ url_for('edit_session', session_id=s.id) }}"
+                           class="text-sm bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-1 px-2 rounded">编辑</a>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if not sessions %}
+        <p class="text-center text-gray-500 mt-6">您还没有任何 session. <a href="{{ url_for('session_to_string') }}"
+                                                                     class="text-blue-500">现在去添加一个?</a></p>
+        {% else %}
+        <div class="mt-4">
+            <button type="submit" name="action" value="delete"
+                    class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                删除选中
+            </button>
+        </div>
+        {% endif %}
+    </form>
+</div>
+
+<script>
+document.getElementById('select-all').addEventListener('change', function(e) {
+    document.querySelectorAll('.session-checkbox').forEach(function(checkbox) {
+        checkbox.checked = e.target.checked;
+    });
+});
+
+document.getElementById('sessions-form').addEventListener('submit', function(e) {
+    // Check if at least one checkbox is checked for the delete action
+    const form = e.target;
+    const actionButton = document.activeElement;
+    if (actionButton.value === 'delete') {
+        const checked = form.querySelector('.session-checkbox:checked');
+        if (!checked) {
+            alert('请至少选择一个会话进行删除。');
+            e.preventDefault();
+            return;
+        }
+        if (!confirm('您确定要删除选中的会话吗？此操作不可恢复。')) {
+            e.preventDefault();
+        }
+    }
+});
+
+</script>
+{% endblock %}

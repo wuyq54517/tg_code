@@ -1,0 +1,8 @@
+Flask==3.0.0
+Werkzeug==3.0.1
+opentele==0.8.1
+Telethon==1.34.1
+phonenumbers==8.13.27
+pytz==2023.3.post1
+pycryptodome==3.19.0
+PySocks==1.7.1

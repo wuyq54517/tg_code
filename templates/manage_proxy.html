@@ -1,0 +1,48 @@
+{% extends "layout.html" %}
+{% block title %}管理代理{% endblock %}
+{% block content %}
+<div class="bg-white p-6 sm:p-8 rounded-lg shadow-lg max-w-2xl mx-auto">
+    <!-- Form for adding a new proxy -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-center mb-6">添加新代理</h1>
+        <form method="post" action="{{ url_for('add_proxy') }}">
+            <div class="mb-4">
+                <label for="proxy" class="block text-gray-700 font-bold mb-2">代理服务器地址</label>
+                <input type="text" id="proxy" name="proxy"
+                       class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                       placeholder="例如: socks5://user:pass@host:port" required>
+                <p class="text-gray-600 text-xs italic mt-2">
+                    支持的格式: <code>socks5://...</code>, <code>socks4://...</code>, <code>http://...</code>
+                </p>
+            </div>
+            <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full focus:outline-none focus:shadow-outline"
+                    type="submit">
+                添加代理
+            </button>
+        </form>
+    </div>
+
+    <!-- List of existing proxies -->
+    <div>
+        <h2 class="text-xl font-bold mb-4">已保存的代理列表</h2>
+        {% if proxies %}
+        <div class="space-y-3">
+            {% for p in proxies %}
+            <div class="bg-gray-50 border rounded-lg p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <p class="font-mono text-sm break-all flex-grow">{{ p.proxy_string }}</p>
+                <form method="post" action="{{ url_for('delete_proxy', proxy_id=p.id) }}"
+                      onsubmit="return confirm('您确定要删除这个代理吗？');" class="flex-shrink-0 w-full sm:w-auto">
+                    <button type="submit"
+                            class="w-full text-sm bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded">
+                        删除
+                    </button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-center text-gray-500 mt-6">您还没有添加任何代理。</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

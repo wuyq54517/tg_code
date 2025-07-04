@@ -389,7 +389,45 @@ def upload_tdata():
                            accept_type='.zip', file_label='选择 tdata 文件夹的 .zip 压缩包')
 
 
-# --- New Routes for TXT Download and Log Viewing ---
+# --- Proxy Management Routes ---
+@app.route('/manage_proxy', methods=['GET'])
+@login_required
+def manage_proxy():
+    db = get_db()
+    proxies = db.execute('SELECT id, proxy_string FROM proxies WHERE user_id = ? ORDER BY id DESC',
+                         (session['user_id'],)).fetchall()
+    return render_template('manage_proxy.html', proxies=proxies)
+
+
+@app.route('/add_proxy', methods=['POST'])
+@login_required
+def add_proxy():
+    proxy_string = request.form.get('proxy', '').strip()
+    if proxy_string:
+        db = get_db()
+        db.execute('INSERT INTO proxies (user_id, proxy_string) VALUES (?, ?)', (session['user_id'], proxy_string))
+        db.commit()
+        flash('代理已成功添加', 'success')
+    else:
+        flash('代理地址不能为空', 'error')
+    return redirect(url_for('manage_proxy'))
+
+
+@app.route('/delete_proxy/<int:proxy_id>', methods=['POST'])
+@login_required
+def delete_proxy(proxy_id):
+    db = get_db()
+    proxy = db.execute('SELECT id FROM proxies WHERE id = ? AND user_id = ?', (proxy_id, session['user_id'])).fetchone()
+    if proxy:
+        db.execute('DELETE FROM proxies WHERE id = ?', (proxy_id,))
+        db.commit()
+        flash('代理已删除', 'success')
+    else:
+        flash('未找到代理或无权操作', 'error')
+    return redirect(url_for('manage_proxy'))
+
+
+# --- TXT Download and Log Viewing ---
 @app.route('/download_txt')
 @login_required
 def download_txt():

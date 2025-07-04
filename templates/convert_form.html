@@ -10,33 +10,8 @@
                    class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
         </div>
         <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full" type="submit">
-            转换
+            上传并转换
         </button>
     </form>
-
-    {% if results %}
-    <div class="mt-6">
-        <h2 class="text-xl font-semibold mb-4">转换结果:</h2>
-        <ul class="space-y-3">
-            {% for res in results %}
-            <li class="p-4 bg-gray-50 border rounded-lg">
-                <p class="font-semibold text-gray-800">文件名: <span class="font-normal">{{ res.filename }}</span></p>
-                {% if res.error %}
-                <p class="text-red-600"><strong>错误:</strong> {{ res.error }}</p>
-                {% else %}
-                <p class="text-green-600"><strong>成功!</strong></p>
-                <p class="text-gray-700"><strong>UUID:</strong>
-                    <span class="font-mono bg-gray-200 px-2 py-1 rounded">{{ res.uuid }}</span>
-                    <button onclick="copyToClipboard('{{ res.uuid }}')"
-                            class="ml-2 text-sm bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-1 px-2 rounded">
-                        复制
-                    </button>
-                </p>
-                {% endif %}
-            </li>
-            {% endfor %}
-        </ul>
-    </div>
-    {% endif %}
 </div>
 {% endblock %}

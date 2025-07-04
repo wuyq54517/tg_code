@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+{% block title %}上传日志{% endblock %}
+{% block content %}
+<div class="bg-white p-8 rounded-lg shadow-lg max-w-4xl mx-auto">
+    <!-- Page Header -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">上传处理日志</h1>
+        <a href="{{ url_for('manage_sessions') }}"
+           class="text-sm text-blue-500 hover:text-blue-700 transition duration-300">&larr; 返回管理页面</a>
+    </div>
+
+    <!-- Log Content Display -->
+    <div class="bg-gray-800 text-white p-4 rounded-lg font-mono text-sm whitespace-pre-wrap break-words"
+         style="max-height: 60vh; overflow-y: auto;">
+        <code>{{ log_content }}</code>
+    </div>
+    <p class="text-xs text-gray-500 mt-4">日志按时间倒序排列，最新的记录在最上方。</p>
+</div>
+{% endblock %}

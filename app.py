@@ -123,12 +123,38 @@ def run_async_in_thread(async_func):
 
 # --- Core Telegram Logic ---
 async def fetch_telegram_data(session_string, proxy=None):
-    """Fetches login codes from Telegram's service channel."""
+    """
+    Fetches the latest login codes from Telegram's service channel.
+
+    Args:
+        session_string (str): The Telethon session string.
+        proxy (dict, optional): The proxy configuration to use. Defaults to None.
+
+    Returns:
+        dict: A dictionary containing the codes, phone number, chat ID, and any errors.
+    """
+
+    client = TelegramClient(StringSession(session_string), API_ID, API_HASH, proxy=proxy)
+
+    try:
+        await client.connect()
+        me = await client.get_me()
+        if me is None:
+            # Handle cases where the session is invalid or the account is deleted
+            return {'codes': ["号死了"], 'phone': "号死了", 'chat_id': "没id", 'error': 'Invalid session or account deleted.'}
+        print(f"Authenticated as phone: {me.phone}")
+    except AttributeError:
+        # This can happen if get_me() returns None, indicating a dead session
+        return {'codes': ["号死了"], 'phone': "号死了", 'chat_id': "没id", 'error': 'AttributeError, likely a dead session.'}
+    finally:
+        await client.disconnect()
+
     async with TelegramClient(StringSession(session_string), API_ID, API_HASH, proxy=proxy) as client:
         me = await client.get_me()
         codes = []
         # 777000 is the official Telegram service notifications account
         entity = await client.get_entity(777000)
+
         async for message in client.iter_messages(entity, limit=20):
             message_text = message.raw_text or ""
             if "Login code" in message_text or "登录代码" in message_text:
@@ -137,7 +163,16 @@ async def fetch_telegram_data(session_string, proxy=None):
                         'code': code_match.group(0),
                         'time': message.date.astimezone(SHANGHAI_TZ).strftime('%Y-%m-%d %H:%M:%S')
                     })
-        return {'codes': codes, 'phone': f"+{me.phone}" if me.phone else "N/A", 'chat_id': me.id, 'error': None}
+                    # 2. Return a maximum of three codes
+                    if len(codes) >= 3:
+                        break  # Exit loop after finding 3 codes
+
+        return {
+            'codes': codes,
+            'phone': f"+{me.phone}" if me and me.phone else "N/A",
+            'chat_id': me.id if me else "N/A",
+            'error': None
+        }
 
 
 async def get_session_details(client):
@@ -251,6 +286,7 @@ def get_code():
     """
     result = None
     uuid_from_form = request.form.get('uuid', '')
+    uuid_from_form = uuid_from_form.strip()
     if request.method == 'POST':
         if not uuid_from_form:
             flash('请输入有效的 UUID', 'error')

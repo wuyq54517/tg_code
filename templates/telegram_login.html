@@ -1,120 +1,54 @@
 {% extends "layout.html" %}
 {% block title %}Telegram 登录{% endblock %}
 {% block content %}
-<div class="bg-white p-8 rounded-lg shadow-lg max-w-lg mx-auto">
-    <h1 class="text-2xl font-bold text-center mb-6">登录 Telegram 账号【BUG】</h1>
-    <p class="text-center text-gray-600 mb-6">通过手机号登录您的 Telegram 账号，系统将自动为您生成并保存 Session UUID。</p>
+<div class="bg-white p-8 rounded-lg shadow-lg max-w-md mx-auto">
+    <h1 class="text-2xl font-bold text-center mb-6">通过手机号登录 Telegram</h1>
 
-    <form id="login-form">
-        <!-- Step 1: Phone number -->
-        <div id="phone-step">
+    {% if step == 'phone' %}
+    <p class="text-center text-gray-500 mb-6">请输入您的 Telegram 手机号码，包含国家代码（例如 +86...）。</p>
+    <form method="POST" action="{{ url_for('telegram_login') }}">
+        <div class="mb-4">
             <label for="phone" class="block text-gray-700 font-bold mb-2">手机号码</label>
-            <input type="text" id="phone" name="phone"
+            <input type="tel" id="phone" name="phone"
                    class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                   placeholder="+861234567890" required>
+                   placeholder="+8613800138000" required>
         </div>
+        <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full" type="submit">
+            发送验证码
+        </button>
+    </form>
 
-        <!-- Step 2: Verification Code -->
-        <div id="code-step" class="mb-4 hidden">
+    {% elif step == 'code' or step == 'password' %}
+    <form method="POST" action="{{ url_for('telegram_login') }}" class="mb-4">
+        {% if step == 'code' %}
+        <div class="mb-4">
             <label for="code" class="block text-gray-700 font-bold mb-2">验证码</label>
             <input type="text" id="code" name="code"
-                   class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                   class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                   required autofocus>
         </div>
-
-        <!-- Step 3: Password (if needed) -->
-        <div id="password-step" class="mb-6 hidden">
+        <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full" type="submit">
+            提交验证码
+        </button>
+        {% elif step == 'password' %}
+        <div class="mb-4">
             <label for="password" class="block text-gray-700 font-bold mb-2">两步验证密码</label>
             <input type="password" id="password" name="password"
-                   class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline">
+                   class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                   required autofocus>
         </div>
-
-        <!-- Error Message Display -->
-        <div id="error-message" class="text-red-600 my-4 text-sm"></div>
-
-        <div class="flex items-center justify-between">
-            <button id="submit-btn"
-                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full"
-                    type="submit">
-                发送验证码
-            </button>
-        </div>
+        <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full" type="submit">
+            提交密码
+        </button>
+        {% endif %}
     </form>
+
+    <form method="POST" action="{{ url_for('cancel_telegram_login') }}">
+        <button class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded w-full" type="submit">
+            取消并返回
+        </button>
+    </form>
+    {% endif %}
+
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('login-form');
-    const phoneStep = document.getElementById('phone-step');
-    const codeStep = document.getElementById('code-step');
-    const passwordStep = document.getElementById('password-step');
-    const submitBtn = document.getElementById('submit-btn');
-    const errorDisplay = document.getElementById('error-message');
-
-    let currentStep = 'phone'; // Initial step
-
-    form.addEventListener('submit', async function(event) {
-        event.preventDefault();
-        errorDisplay.textContent = ''; // Clear previous errors
-        setLoading(true);
-
-        const formData = new FormData(form);
-
-        if (currentStep === 'phone') {
-            await handleSendCode(formData);
-        } else {
-            await handleLogin(formData);
-        }
-
-        setLoading(false);
-    });
-
-    async function handleSendCode(formData) {
-        const response = await fetch("{{ url_for('api_telegram_send_code') }}", {
-            method: 'POST',
-            body: formData
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            window.showToast('验证码已发送，请查收', 'success');
-            phoneStep.classList.add('hidden');
-            codeStep.classList.remove('hidden');
-            submitBtn.textContent = '登录';
-            currentStep = 'code';
-        } else {
-            errorDisplay.textContent = data.error || '发生未知错误';
-        }
-    }
-
-    async function handleLogin(formData) {
-        const response = await fetch("{{ url_for('api_telegram_login') }}", {
-            method: 'POST',
-            body: formData
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            window.showToast('登录成功!', 'success');
-            window.location.href = data.redirect;
-        } else if (data.error === 'password_needed') {
-            window.showToast('该账户需要两步验证密码', 'info');
-            passwordStep.classList.remove('hidden');
-            currentStep = 'password';
-        } else {
-            errorDisplay.textContent = data.error || '发生未知错误';
-        }
-    }
-
-    function setLoading(isLoading) {
-        submitBtn.disabled = isLoading;
-        submitBtn.textContent = isLoading ? '处理中...' : (currentStep === 'phone' ? '发送验证码' : '登录');
-        submitBtn.classList.toggle('opacity-50', isLoading);
-        submitBtn.classList.toggle('cursor-not-allowed', isLoading);
-    }
-});
-
-
-</script>
 {% endblock %}

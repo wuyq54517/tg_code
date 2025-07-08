@@ -3,7 +3,6 @@ import uuid
 import sqlite3
 from flask import Flask, request, render_template, redirect, url_for, session, flash, g, jsonify, Response
 from werkzeug.security import generate_password_hash, check_password_hash
-from opentele.exception import OpenTeleException
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 from telethon.errors import SessionPasswordNeededError, PhoneCodeInvalidError, PasswordHashInvalidError, FloodWaitError
@@ -11,8 +10,9 @@ import re
 import os
 import asyncio
 import tempfile
-from opentele.td import TDesktop
-from opentele.api import UseCurrentSession
+# from opentele.exception import OpenTeleException
+# from opentele.td import TDesktop
+# from opentele.api import UseCurrentSession
 import logging
 import threading
 from datetime import datetime
@@ -31,7 +31,7 @@ logging.basicConfig(level=logging.INFO)
 # --- Constants ---
 SESSION_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sessions')
 os.makedirs(SESSION_DIR, exist_ok=True)
-API_ID = '19842526'
+API_ID = 19842526
 API_HASH = '1ddb30b32ff81188a4356450ffff3035'
 DATABASE = 'database.db'
 SHANGHAI_TZ = pytz.timezone('Asia/Shanghai')
@@ -468,6 +468,110 @@ def upload_log():
         logging.error(f"Error reading log file for user {session['user_id']}: {e}")
 
     return render_template('upload_log.html', log_content=log_content)
+
+
+# --- Telegram Direct Login ---
+
+@app.route('/telegram_login', methods=['GET', 'POST'])
+@login_required
+def telegram_login():  # Changed back to a regular 'def'
+    """
+    Handles the multi-step process of logging into Telegram directly.
+    This is a synchronous view function that runs async code internally.
+    """
+    if request.method == 'GET':
+        step = session.get('telegram_login_step', 'phone')
+        return render_template('telegram_login.html', step=step)
+
+    # --- For POST requests, run the async logic ---
+    redirect_url = asyncio.run(do_telegram_login_step())
+    return redirect(redirect_url)
+
+
+async def do_telegram_login_step():
+    """
+    Encapsulates the asynchronous logic for the login steps.
+    This function is run by asyncio.run() from the main view.
+    It returns the URL to redirect to.
+    """
+    user_id = session['user_id']
+    proxy = get_user_proxy(user_id)
+    session_string = session.get('login_session_string')
+    client = TelegramClient(StringSession(session_string), API_ID, API_HASH, proxy=proxy)
+
+    try:
+        await client.connect()
+        step = session.get('telegram_login_step', 'phone')
+
+        if step == 'phone':
+            phone = request.form['phone']
+            try:
+                result = await client.send_code_request(phone)
+                session['phone_number'] = phone
+                session['phone_code_hash'] = result.phone_code_hash
+                session['telegram_login_step'] = 'code'
+                flash('验证码已发送到您的 Telegram', 'info')
+            except FloodWaitError as e:
+                flash(f'操作过于频繁，请等待 {e.seconds} 秒后再试', 'error')
+            except Exception as e:
+                flash(f'发送验证码时出错: {e}', 'error')
+                session['telegram_login_step'] = 'phone'
+
+        elif step == 'code':
+            code = request.form['code']
+            phone = session.get('phone_number')
+            phone_code_hash = session.get('phone_code_hash')
+            try:
+                await client.sign_in(phone, code, phone_code_hash=phone_code_hash)
+                details = await get_session_details(client)
+                store_session_in_db(details, user_id)
+                flash('Telegram 登录成功！', 'success')
+                for key in ['telegram_login_step', 'phone_number', 'phone_code_hash', 'login_session_string']:
+                    session.pop(key, None)
+                return url_for('manage_sessions')
+            except SessionPasswordNeededError:
+                session['telegram_login_step'] = 'password'
+                flash('您的账号已启用两步验证，请输入密码', 'info')
+            except PhoneCodeInvalidError:
+                flash('无效的验证码，请重试', 'error')
+            except Exception as e:
+                flash(f'登录时出错: {e}', 'error')
+                session['telegram_login_step'] = 'phone'
+
+        elif step == 'password':
+            password = request.form['password']
+            try:
+                await client.sign_in(password=password)
+                details = await get_session_details(client)
+                store_session_in_db(details, user_id)
+                flash('Telegram 登录成功！', 'success')
+                for key in ['telegram_login_step', 'phone_number', 'phone_code_hash', 'login_session_string']:
+                    session.pop(key, None)
+                return url_for('manage_sessions')
+            except PasswordHashInvalidError:
+                flash('密码错误，请重试', 'error')
+            except Exception as e:
+                flash(f'登录时出错: {e}', 'error')
+                session['telegram_login_step'] = 'phone'
+
+    finally:
+        if client.session.save():
+            session['login_session_string'] = client.session.save()
+        if client.is_connected():
+            await client.disconnect()
+
+    # Default redirect target if not successful
+    return url_for('telegram_login')
+
+
+@app.route('/cancel_telegram_login', methods=['POST'])
+@login_required
+def cancel_telegram_login():
+    """Clears all session variables related to the Telegram login flow."""
+    for key in ['telegram_login_step', 'phone_number', 'phone_code_hash', 'login_session_string']:
+        session.pop(key, None)
+    flash('登录流程已取消', 'info')
+    return redirect(url_for('telegram_login'))
 
 
 if __name__ == '__main__':
